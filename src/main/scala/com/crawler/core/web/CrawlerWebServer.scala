@@ -39,7 +39,7 @@ class CrawlerWebServer(crawlerMaster: CrawlerMaster) {
 
 
     Http().bindAndHandle(route, "localhost", 5555)
-    println(s"Web ыerver online at http://localhost:5555/")
+    println(s"Web server online at http://localhost:5555/")
   }
 
   def stop() {
