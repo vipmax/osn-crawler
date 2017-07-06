@@ -91,28 +91,16 @@ case class KafkaUniqueSaver(kafkaEndpoint: String, redisEndpoint: String, kafkaT
   override def saveOne(d: BasicDBObject): Unit = {
     val key = s"$kafkaTopic-${d.getString("key", java.util.UUID.randomUUID.toString.substring(0, 20))}"
     val value = d.toJson
-    logger.debug(s"Needs to save BasicDBObject data $value")
-
-    val rsps: Long = try {
-      jedis.setnx(key, "")
-    } catch {
-      case e: Exception => 1L
+    val rsps = jedis.setnx(key, "")
+    if (rsps <= 0) {
+      logger.warn(s"kafka dublicate key $key")
     }
-    rsps match {
-      case r if r <= 0 =>
-        logger.debug(s"Key $key already saved to kafka")
-        try {
-          jedis.expire(key, 60)
-        } catch {
-          case e: Exception => 0L
-        }
-
-      case r if r > 0 =>
-        logger.debug(s"Needs  save $key to kafka")
-        kafkaProducer.send(new ProducerRecord[String, String](kafkaTopic, value))
+    else {
+      jedis.expire(key, 7200)  // 2 hours is ok for production environment;
+      logger.debug(s"Needs save $key to kafka")
+      kafkaProducer.send(new ProducerRecord[String, String](kafkaTopic, value))
     }
   }
-
 }
 
 case class RedisSaver(redisEndpoint: String, collection: String, updateValue: Boolean = true) extends Saver {
