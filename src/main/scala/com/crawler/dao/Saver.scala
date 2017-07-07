@@ -10,6 +10,7 @@ import com.mongodb.{BasicDBList, BasicDBObject, MongoClient, MongoWriteException
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.log4j.Logger
+import redis.clients.jedis.exceptions.JedisConnectionException
 import redis.clients.jedis.{JedisPool, JedisPoolConfig}
 
 import scala.collection.JavaConversions._
@@ -91,15 +92,19 @@ case class KafkaUniqueSaver(kafkaEndpoint: String, redisEndpoint: String, kafkaT
   override def saveOne(d: BasicDBObject): Unit = {
     val key = s"$kafkaTopic-${d.getString("key", java.util.UUID.randomUUID.toString.substring(0, 20))}"
     val value = d.toJson
-    val rsps = jedis.setnx(key, "")
-    if (rsps <= 0) {
-      logger.warn(s"kafka dublicate key $key")
-    }
-    else {
-      jedis.expire(key, 7200)  // 2 hours is ok for production environment;
+    try {
+      val rsps = jedis.setnx(key, "")
+      if (rsps <= 0) {
+        logger.warn(s"kafka dublicate key $key")
+      }
+      else {
+        jedis.expire(key, 7200) // 2 hours is ok for production environment;
+        logger.debug(s"Needs save $key to kafka")
+        kafkaProducer.send(new ProducerRecord[String, String](kafkaTopic, value))
+      }
+    }catch { case e: JedisConnectionException =>
       logger.debug(s"Needs save $key to kafka")
-      kafkaProducer.send(new ProducerRecord[String, String](kafkaTopic, value))
-    }
+      kafkaProducer.send(new ProducerRecord[String, String](kafkaTopic, value))}
   }
 }
 

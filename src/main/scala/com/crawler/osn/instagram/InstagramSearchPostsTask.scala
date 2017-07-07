@@ -1,9 +1,12 @@
 package com.crawler.osn.instagram
 
+import akka.actor.ActorRef
 import com.mongodb.util.JSON
 import com.mongodb.{BasicDBList, BasicDBObject}
-import com.crawler.osn.common.{InstagramTask, SaveTask, StateTask}
+import com.crawler.osn.common._
 import com.crawler.dao.SaverInfo
+import com.crawler.osn.twitter.tasks.TwitterSearchPostsTask
+import redis.clients.jedis.exceptions.JedisConnectionException
 
 import scalaj.http.Http
 
@@ -62,19 +65,33 @@ case class InstagramSearchPostsTask(query: String,
   override def name: String = s"InstagramSearchPostsTask(query=$query)"
 }
 
+case class InstagramNewGeoPostsSearchTaskFailureResponse(task: InstagramNewGeoPostsSearchTask,
+                                                         resultData: Array[BasicDBObject],
+                                                         exception: Exception) extends TaskDataResponse
+
 case class InstagramNewGeoPostsSearchTask(query: String,
-                                          saverInfo: SaverInfo)
+                                          saverInfo: SaverInfo,
+                                          override val responseActor: AnyRef = null
+                                         )
                                          (implicit app: String)
   extends InstagramTask
     with SaveTask
-    with StateTask {
+    with StateTask
+    with ResponseTask {
 
   override def appname: String = app
 
   override def run(network: AnyRef) {
-    val posts = searchPosts(query)
-    val postsWithLocation = appendLocation(posts)
-    postsWithLocation.foreach(save)
+    try {
+      val posts = searchPosts(query)
+      val postsWithLocation = appendLocation(posts)
+      postsWithLocation.foreach(save)
+    }catch {
+      case e:Exception =>
+        logger.error("wrong topic")
+        logger.error(e.getStackTrace)
+        response(InstagramNewGeoPostsSearchTaskFailureResponse(this.copy(), Array(), e))
+      }
   }
 
   def searchPosts(tag: String) = {

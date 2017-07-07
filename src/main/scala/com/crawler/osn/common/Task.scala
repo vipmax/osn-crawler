@@ -79,6 +79,7 @@ trait Task {
   }
 }
 
+case class DataResponse() extends BasicDBObject
 
 trait TaskDataResponse {
   def task: Task

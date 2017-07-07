@@ -20,7 +20,10 @@ case class TwitterPostsTask(profileId: Any,
                             override val responseActor: ActorRef = null,
                             saverInfo: SaverInfo = MemorySaverInfo()
                            )(implicit app: String)
-  extends TwitterTask with StateTask with SaveTask with ResponseTask {
+  extends TwitterTask
+    with StateTask
+    with SaveTask
+    with ResponseTask {
 
   /* state */
   var offset = 1L
