@@ -111,9 +111,9 @@ class CrawlerMaster extends CrawlerActor {
       crawlerAgent ! AddWorkerRequest("simple", account)
     }
 
-    Util.getTwitterAccounts().take(10).foreach { account =>
-      crawlerAgent ! AddWorkerRequest("twitter", account)
-    }
+//    Util.getTwitterAccounts().take(10).foreach { account =>
+//      crawlerAgent ! AddWorkerRequest("twitter", account)
+//    }
   }
 }
 

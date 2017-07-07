@@ -95,7 +95,7 @@ case class KafkaUniqueSaver(kafkaEndpoint: String, redisEndpoint: String, kafkaT
     try {
       val rsps = jedis.setnx(key, "")
       if (rsps <= 0) {
-        logger.warn(s"kafka dublicate key $key")
+//        logger.warn(s"kafka dublicate key $key")
       }
       else {
         jedis.expire(key, 7200) // 2 hours is ok for production environment;
