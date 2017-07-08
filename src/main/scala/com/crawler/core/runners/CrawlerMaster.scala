@@ -16,17 +16,18 @@ import scala.collection.mutable
   */
 object CrawlerMaster {
   val role = "CrawlerMaster"
+  var isStarted = false
 
   def main(args: Array[String]) {
+    if(isStarted) {
+      println("CrawlerMaster Already started")
+      return
+    }
     val masterIp = if (args.length > 0) args(0) else Util.getCurrentIp()
-
-    val clusterName = "crawler"
-    val actorSystem = ActorSystem(
-      clusterName,
-      CrawlerConfig.getConfig(clusterName, masterIp, masterIp, role)
-    )
+    val actorSystem = ActorSystem(CrawlerConfig.clusterName, CrawlerConfig.getConfig(masterIp, masterIp, role))
     actorSystem.actorOf(Props[CrawlerMaster], role)
     actorSystem.whenTerminated
+    isStarted = true
   }
 }
 

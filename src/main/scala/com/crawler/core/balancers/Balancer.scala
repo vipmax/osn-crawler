@@ -115,17 +115,17 @@ class Balancer extends Actor {
       context.actorSelection(workerPath) ! InitBalancer()
 
     case workerTaskRequest: SimpleWorkerTaskRequest =>
-      logger.trace(s"Got SimpleWorkerTaskRequest($workerTaskRequest)")
+//      logger.trace(s"Got SimpleWorkerTaskRequest($workerTaskRequest)")
 
       val maybeTask = dequeueTask(workerTaskRequest)
 
       maybeTask match {
         case Some(task) =>
-          logger.trace(s"Found task=${task.name} for workerTaskRequest. Sending to worker $sender")
+          logger.trace(s"Found task=${task.name} for worker $sender")
           sender ! task
 
         case None =>
-          logger.trace(s"Task not found for workerTaskRequest $workerTaskRequest")
+//          logger.trace(s"Task not found for workerTaskRequest $workerTaskRequest")
           addFreeWorker(sender, workerTaskRequest)
       }
 
@@ -143,8 +143,7 @@ class Balancer extends Actor {
           removeFreeWorker(worker, task.taskType())
 
         case None =>
-          logger.trace(s"freeWorker not found for task type: ${task.taskType()}")
-
+//          logger.trace(s"freeWorker not found for task type: ${task.taskType()}")
           enqueueTask(task)
       }
 

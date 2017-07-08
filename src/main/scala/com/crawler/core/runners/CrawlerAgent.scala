@@ -9,6 +9,7 @@ import com.crawler.core.actors.twitter.TwitterParrallelTypedWorkerActor
 import com.crawler.core.balancers.{Balancer, TwitterBalancer}
 import com.crawler.osn.common.{Account, TwitterAccount}
 import com.crawler.core.runners.CrawlerAgent.{AddWorkerRequest, RemoveWorkerRequest, WorkerUp}
+import com.crawler.core.runners.CrawlerMaster.isStarted
 import com.crawler.util.Util
 
 import scala.collection.mutable
@@ -25,18 +26,18 @@ object CrawlerAgent {
   case class WorkerRemoved(workerPath:String)
 
   val role = "CrawlerAgent"
+  var isStarted = false
 
   def main(args: Array[String]) {
+    if(isStarted) return
+
     val masterIp = if (args.length > 0) args(0) else Util.getCurrentIp()
     val myIp = if (args.length > 1) args(1) else Util.getCurrentIp()
 
-    val clusterName = "crawler"
-    val system = ActorSystem(
-      clusterName,
-      CrawlerConfig.getConfig(clusterName = clusterName, masterIp = masterIp, myIp = myIp, role = role)
-    )
+    val system = ActorSystem(CrawlerConfig.clusterName, CrawlerConfig.getConfig(masterIp, myIp, role))
     system.actorOf(Props[CrawlerAgent], role)
     system.whenTerminated
+    isStarted = true
   }
 }
 

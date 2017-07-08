@@ -121,7 +121,7 @@ case class InstagramNewGeoPostsSearchTask(query: String,
           p.replace("location", location)
         } catch { case _ => }
 
-        p.put("key", p.getString("id"))
+        p.put("key", p.getString("shortcode"))
         p.put("query", query)
         p.put("network", "instagram")
         p.put("date", p.get("taken_at_timestamp"))

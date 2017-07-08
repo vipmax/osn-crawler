@@ -10,7 +10,7 @@ import com.mongodb.{BasicDBList, BasicDBObject, MongoClient, MongoWriteException
 import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
 import org.apache.kafka.common.serialization.StringSerializer
 import org.apache.log4j.Logger
-import redis.clients.jedis.exceptions.JedisConnectionException
+import redis.clients.jedis.exceptions.{JedisConnectionException, JedisDataException, JedisException}
 import redis.clients.jedis.{JedisPool, JedisPoolConfig}
 
 import scala.collection.JavaConversions._
@@ -102,7 +102,7 @@ case class KafkaUniqueSaver(kafkaEndpoint: String, redisEndpoint: String, kafkaT
         logger.debug(s"Needs save $key to kafka")
         kafkaProducer.send(new ProducerRecord[String, String](kafkaTopic, value))
       }
-    }catch { case e: JedisConnectionException =>
+    }catch { case e: JedisException  =>
       logger.debug(s"Needs save $key to kafka")
       kafkaProducer.send(new ProducerRecord[String, String](kafkaTopic, value))}
   }

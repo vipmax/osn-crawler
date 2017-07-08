@@ -10,9 +10,9 @@ import collection.JavaConversions._
   * Created by Max Petrov on 18.11.15.
   */
 object CrawlerConfig {
+  val clusterName = "crawler"
 
-  def getConfig(clusterName: String = "crawler",
-                masterIp: String = "127.0.0.1",
+  def getConfig(masterIp: String = "127.0.0.1",
                 myIp: String = "127.0.0.1",
                 role: String): Config = {
 
