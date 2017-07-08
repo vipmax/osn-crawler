@@ -96,7 +96,7 @@ object Balancer {
 }
 
 class Balancer extends Actor {
-  val logger = CrawlerLoggerFactory.logger("SimpleBalancer","core/balancer")
+  val logger = CrawlerLoggerFactory.logger("Balancer","core/balancer")
 
   val freeWorkers = mutable.Map[String, mutable.Set[ActorRef]]()
   val apps = mutable.ListBuffer[App]()
@@ -111,7 +111,7 @@ class Balancer extends Actor {
 
   override def receive: Receive = {
     case  WorkerUp(workerPath) =>
-      logger.trace(s"Got SimpleWorkerAdded $workerPath")
+//      logger.trace(s"Got SimpleWorkerAdded $workerPath")
       context.actorSelection(workerPath) ! InitBalancer()
 
     case workerTaskRequest: SimpleWorkerTaskRequest =>
@@ -121,7 +121,7 @@ class Balancer extends Actor {
 
       maybeTask match {
         case Some(task) =>
-          logger.trace(s"Found task=${task.name} for worker $sender")
+          logger.trace(s"Found task ${task.name} for worker $sender")
           sender ! task
 
         case None =>
@@ -131,7 +131,7 @@ class Balancer extends Actor {
 
 
     case task: Task =>
-      logger.trace(s"Got Task(${task.name})")
+//      logger.trace(s"Got Task(${task.name})")
 
       val freeWorker = getFreeWorker(task.taskType())
 

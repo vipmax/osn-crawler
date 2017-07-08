@@ -85,6 +85,7 @@ case class InstagramNewGeoPostsSearchTask(query: String,
     try {
       val posts = searchPosts(query)
       val postsWithLocation = appendLocation(posts)
+      logger.info(s"Found ${postsWithLocation.length} posts for task $id")
       postsWithLocation.foreach(save)
     }catch {
       case e:Exception =>
