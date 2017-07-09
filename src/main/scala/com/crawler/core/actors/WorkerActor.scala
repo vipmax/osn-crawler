@@ -11,6 +11,7 @@ import com.crawler.util.Util
 import twitter4j.conf.ConfigurationBuilder
 import twitter4j.{Twitter, TwitterFactory}
 
+import scala.collection.parallel.mutable
 import scala.util.Random
 /**
   * Created by vipmax on 14.11.16.

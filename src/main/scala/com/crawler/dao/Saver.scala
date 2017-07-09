@@ -22,6 +22,7 @@ import scala.collection.mutable
 
 trait Saver {
   val logger = Logger.getLogger(this.getClass)
+  val saverId = java.util.UUID.randomUUID.toString.substring(0, 20)
 
   def saveOne(one: BasicDBObject)
 
@@ -78,6 +79,14 @@ case class KafkaSaver(var kafkaEndpoint: String, topic: String) extends Saver {
   }
 }
 
+object KafkaUniqueSaver {
+  def main(args: Array[String]): Unit = {
+    val saver = KafkaUniqueSaver("localhost:9092", "localhost", "testopic")
+    0 to 100 foreach {i =>
+      saver.saveOne(new BasicDBObject("key", "test").append("data", "somedata"))
+    }
+  }
+}
 case class KafkaUniqueSaver(kafkaEndpoint: String, redisEndpoint: String, kafkaTopic: String) extends Saver {
   def this(kusi: KafkaUniqueSaverInfo) {
     this(kusi.kafkaEndpoint, kusi.redisEndpoint, kusi.topic)
@@ -92,21 +101,23 @@ case class KafkaUniqueSaver(kafkaEndpoint: String, redisEndpoint: String, kafkaT
   override def saveOne(d: BasicDBObject): Unit = {
     val key = s"$kafkaTopic-${d.getString("key", java.util.UUID.randomUUID.toString.substring(0, 20))}"
     val value = d.toJson
-    try {
+//    try {
       val rsps = jedis.setnx(key, "")
       if (rsps <= 0) {
-//        logger.warn(s"kafka dublicate key $key")
+        logger.warn(s"saver $saverId: kafka dublicate key $key")
       }
       else {
         jedis.expire(key, 7200) // 2 hours is ok for production environment;
-        logger.debug(s"Needs save $key to kafka")
+        logger.debug(s"saver $saverId: needs save $key to kafka")
         kafkaProducer.send(new ProducerRecord[String, String](kafkaTopic, value))
       }
-    }catch { case e: JedisException  =>
-      logger.debug(s"Needs save $key to kafka")
-      kafkaProducer.send(new ProducerRecord[String, String](kafkaTopic, value))}
+//    }catch { case e: JedisException  =>
+//      logger.debug(s"Needs save $key to kafka")
+//      kafkaProducer.send(new ProducerRecord[String, String](kafkaTopic, value))}
   }
 }
+
+
 
 case class RedisSaver(redisEndpoint: String, collection: String, updateValue: Boolean = true) extends Saver {
   def this(rsi: RedisSaverInfo) {
