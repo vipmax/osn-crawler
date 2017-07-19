@@ -19,15 +19,13 @@ case class VkPostsTaskDataResponse(task: VkPostsTask, resultData: Array[BasicDBO
 
 case class VkPostsTask(ownerId:String,
                        countFilter: CountFilter = CountFilter(),
-                       timeFilter: TimeFilter = TimeFilter(),
-                       override val responseActor: AnyRef = null,
-                       saverInfo: SaverInfo = MemorySaverInfo()
-                      )(implicit app: String)
+                       timeFilter: TimeFilter = TimeFilter())(implicit app: String)
   extends VkontakteTask
     with SaveTask
     with ResponseTask {
 
-  override def appname: String = app
+  val name = s"VkPostsTask(ownerId=$ownerId)"
+  val appname = app
 
   override def extract(account: VkontakteAccount) = {
     var end = false
@@ -41,7 +39,7 @@ case class VkPostsTask(ownerId:String,
         .param("offset", offset.toString)
         .param("v", "5.8")
 
-      val json = exec(httpRequest)
+      val json = exec(httpRequest,account)
 
       val posts = parse(json)
       offset += posts.length
@@ -86,6 +84,5 @@ case class VkPostsTask(ownerId:String,
       }
   }
 
-  override def name: String = s"VkPostsTask(ownerId=$ownerId)"
 }
 

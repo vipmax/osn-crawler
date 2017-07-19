@@ -8,10 +8,7 @@ import twitter4j._
 
 case class TwitterRePostersTaskResponse(statusId:Long, reposters: Array[BasicDBObject])
 
-case class TwitterRePostersTask(statusId:Long,
-                                var count: Int = 100,
-                                responseActor: ActorRef = null,
-                                saverInfo: SaverInfo)(implicit app: String)
+case class TwitterRePostersTask(statusId:Long, var count: Int = 100)(implicit app: String)
   extends TwitterTask
     with StateTask
     with SaveTask {
@@ -20,7 +17,9 @@ case class TwitterRePostersTask(statusId:Long,
   var offset = 1L
   var _newRequestsCount = 0
 
-  override def appname: String = app
+  val appname = app
+  val name = s"TwitterRePostersTask(statusId=$statusId)"
+
 
   override def run(network: AnyRef) {
     network match {
@@ -61,8 +60,6 @@ case class TwitterRePostersTask(statusId:Long,
       saveState(Map("offset" -> localOffset))
     }
   }
-
-  override def name: String = s"TwitterRePostersTask(statusId=$statusId)"
 
   override def saveState(stateParams: Map[String, Any]) {
     logger.debug(s"Saving state. stateParams=$stateParams")

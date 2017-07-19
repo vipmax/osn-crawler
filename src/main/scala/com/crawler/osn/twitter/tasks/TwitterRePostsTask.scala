@@ -10,13 +10,12 @@ import scala.collection.JavaConversions._
 
 case class TwitterRePostsTaskResponse(statusId: Long, reposts: List[BasicDBObject])
 
-case class TwitterRePostsTask(statusId: Long,
-                              responseActor: ActorRef = null,
-                              saverInfo: SaverInfo)(implicit app: String)
+case class TwitterRePostsTask(statusId: Long)(implicit app: String)
   extends TwitterTask
     with SaveTask {
 
-  override def appname: String = app
+  val appname = app
+  val name = s"TwitterPostsTask(statusId=$statusId)"
 
   override def run(network: AnyRef) {
     network match {
@@ -34,16 +33,10 @@ case class TwitterRePostsTask(statusId: Long,
     val posts = TwitterTaskUtil.mapStatuses(statuses.toList)
 
     save(posts)
-    Option(responseActor) match {
-      case Some(actor) => actor ! TwitterRePostsTaskResponse(statusId, posts)
-      case None => logger.debug(s"No response Actor for task $name")
-    }
-
     logger.debug(s"Ended for $statusId. retweetsCount = ${posts.length}")
   }
 
 
-  override def name: String = s"TwitterPostsTask(statusId=$statusId)"
 
   override def newRequestsCount() = 1
 }

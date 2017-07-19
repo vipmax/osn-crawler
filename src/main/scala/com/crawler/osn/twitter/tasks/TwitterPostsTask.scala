@@ -16,20 +16,20 @@ case class TwitterPostsTaskDataResponse(task: TwitterPostsTask, resultData: Arra
 
 case class TwitterPostsTask(profileId: Any,
                             timeFilter: TimeFilter = TimeFilter(),
-                            countFilter: CountFilter = CountFilter(3200),
-                            override val responseActor: ActorRef = null,
-                            saverInfo: SaverInfo = MemorySaverInfo()
+                            countFilter: CountFilter = CountFilter(3200)
                            )(implicit app: String)
   extends TwitterTask
     with StateTask
     with SaveTask
     with ResponseTask {
 
+  val name = s"TwitterPostsTask(profileId=$profileId)"
+  val appname: String = app
+
   /* state */
   var offset = 1L
   var _newRequestsCount = 0
 
-  override def appname: String = app
 
   override def run(network: AnyRef) {
     network match {
@@ -84,8 +84,6 @@ case class TwitterPostsTask(profileId: Any,
     val isEnough = statusesCount > countFilter.maxCount
     isNotInTime ||  isEnough
   }
-
-  override def name: String = s"TwitterPostsTask(profileId=$profileId)"
 
   override def saveState(stateParams: Map[String, Any]) {
     logger.debug(s"Saving state. stateParams=$stateParams")

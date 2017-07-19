@@ -17,21 +17,18 @@ import scala.collection.JavaConversions._
 case class TwitterSearchPostsTaskFinalDataResponse(task: TwitterSearchPostsTask, resultData: Array[BasicDBObject]) extends TaskDataResponse
 case class TwitterSearchPostsTaskDataResponse(task: TwitterSearchPostsTask, resultData: Array[BasicDBObject]) extends TaskDataResponse
 
-case class TwitterSearchPostsTask(query: Query,
-                                  var count: Int = -1,
-                                  saverInfo: SaverInfo = MemorySaverInfo(),
-                                  override val responseActor: AnyRef = null
-                                 )(implicit app: String)
+case class TwitterSearchPostsTask(query: Query, var count: Int = -1)(implicit app: String)
   extends TwitterTask
     with SaveTask
     with StateTask
     with ResponseTask {
 
+  val name = s"TwitterSearchPostsTask(query=${query.getQuery})"
+  val appname = app
+
   /* state */
   var offset = 1L
   var _newRequestsCount = 0
-
-  override def appname: String = app
 
   override def run(network: AnyRef) {
     network match {
@@ -71,7 +68,6 @@ case class TwitterSearchPostsTask(query: Query,
 //    response(TwitterSearchPostsTaskDataResponse(this, data))
   }
 
-  override def name: String = s"TwitterSearchPostsTask(query=${query.getQuery})"
 
   override def saveState(stateParams: Map[String, Any]) {
     logger.debug(s"Saving state. stateParams=$stateParams")

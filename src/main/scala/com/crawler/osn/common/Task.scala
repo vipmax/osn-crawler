@@ -4,10 +4,11 @@ import java.beans.Transient
 
 import akka.actor.{ActorRef, ActorSelection}
 import com.mongodb.BasicDBObject
-import com.crawler.dao.{Saver, SaverInfo}
+import com.crawler.dao.{MemorySaverInfo, Saver, SaverInfo}
 import com.crawler.logger.CrawlerLogger
 import com.crawler.util.Util
 
+import scala.collection.mutable
 import scalaj.http.HttpRequest
 
 
@@ -21,37 +22,40 @@ trait Task {
   val id = java.util.UUID.randomUUID.toString.substring(0, 10)
 
   /** task name */
-  def name: String
+  val name: String
 
   /** task name */
-  def appname: String
+  val appname: String
 
   /** task type */
-  def taskType() = this.getClass.getSimpleName
+  val taskType = this.getClass.getSimpleName
 
   /** task attempt */
   var attempt = 0
 
   /** task proxy */
-  @Transient var proxy: CrawlerProxy = null
+  @Transient var proxy: Option[CrawlerProxy] = Option(null)
 
   /** crawler balancer */
-  @Transient var balancer: AnyRef  = null
+  @Transient var balancer: Option[AnyRef] = Option(null)
 
   /** task logger. Must be injected by crawler */
-  @Transient var logger: CrawlerLogger = null
+  @Transient var logger: CrawlerLogger = _
 
   /** task saver meta info. base in it crawler injects com.crawler.dao.Saver object */
-  def saverInfo: SaverInfo
+  var saverInfo: Option[SaverInfo] = Option(MemorySaverInfo())
 
   /** task saver. Must be injected by crawler */
-  @Transient var saver: Saver = null
+  @Transient var saver: Option[Saver]  = Option(null)
 
   /** task account (osn's credential). Can be injected by crawler */
-  var account: Account = null
+  var account: Option[Account]  = Option(null)
+
+  /** tasks parameters */
+  val otherTaskParameters = mutable.HashMap[String, Any]()
 
   /** Method for run task. Must include network logic to different OSNs */
-  def run(network: AnyRef)
+  def run(network: AnyRef = null)
 
   /** experimental, for data normalization, should contains field regexps
     * use List(".") for all fields to be presented
@@ -69,9 +73,9 @@ trait Task {
     println(s"sending ${tasks.size} tasks to balancer $balancer")
 
     tasks.foreach{ task =>
-      balancer match {
-        case  b: ActorRef => b ! task
-        case  b: ActorSelection => b ! task
+      balancer.get match {
+        case  Some(b: ActorRef) => b ! task
+        case  Some(b: ActorSelection) => b ! task
         case  _ => logger.warning("balancer not found")
       }
     }
@@ -90,14 +94,13 @@ case class TaskStatusResponse(task: Task, status: String, exception: Exception)
 
 trait ResponseTask extends Task {
   var isStream = false
-  val responseActor: AnyRef = null
+  var responseActor: Option[AnyRef] = _
 
-  def response(responseActor: AnyRef, response: TaskDataResponse) {
-    println(response, responseActor)
+  def response(responseActor: Option[AnyRef], response: TaskDataResponse) {
     responseActor match {
-      case  ar: ActorRef => ar ! response
-      case  as: ActorSelection => as ! response
-      case  _ => logger.warning("responseActor not found")
+      case Some(ar: ActorRef) => ar ! response
+      case Some(as: ActorSelection) => as ! response
+      case None => logger.warning("responseActor not found")
     }
   }
 
@@ -109,17 +112,20 @@ trait ResponseTask extends Task {
 
 trait SaveTask extends Task {
   def save(datas: Any) {
-    if(saver != null ) {
+    if(saver.isDefined) {
       datas match {
         case many: Iterable[BasicDBObject] if many.nonEmpty =>
-          if(dataSchema.isEmpty)
-            saver.saveMany(many)
-          else {
-            val data = many.map( m => Util.denorm(m, dataSchema))
-            saver.saveMany(data)
-          }
+          if(dataSchema.isEmpty) saver.get.saveMany(many)
+          else saver.get.saveMany(many.map(m => Util.denorm(m, dataSchema)))
+
+        case many: Array[BasicDBObject] if many.nonEmpty =>
+          if(dataSchema.isEmpty) saver.get.saveMany(many)
+          else saver.get.saveMany(many.map(m => Util.denorm(m, dataSchema)))
+
         case one: BasicDBObject if one != null =>
-          saver.saveOne(one)
+          if(dataSchema.isEmpty) saver.get.saveOne(one)
+          else saver.get.saveOne(Util.denorm(one, dataSchema))
+        case _ =>
       }
     }
   }
@@ -151,40 +157,34 @@ trait VkontakteTask extends Task {
   override def run(network: AnyRef = null) {
 
     /* using  balancer account first */
-    var account: Account = network match {
+    var crawlerAccount: Account = network match {
       case acc:VkontakteAccount => acc
       case _ => null
     }
 
     /* can be overrided by own user account */
-    if(this.account != null) account = this.account
+    if(this.account.isDefined) crawlerAccount = this.account.get
 
-    if(this.logger == null) throw new NullPointerException("logger is null")
-//    if(account == null) throw NoAccountFoundException("account is null")
-//    if(!account.isInstanceOf[VkontakteAccount]) throw AccountTypeMismatchException("account is not VkontakteAccount")
+    if(crawlerAccount == null) throw NoAccountFoundException("account is null")
+    if(!crawlerAccount.isInstanceOf[VkontakteAccount]) throw AccountTypeMismatchException("account is not VkontakteAccount")
 
-    extract(account.asInstanceOf[VkontakteAccount])
-
+    extract(crawlerAccount.asInstanceOf[VkontakteAccount])
   }
 
   def extract(account: VkontakteAccount)
 
-  def exec(httpRequest: HttpRequest): String = {
-    var httpReq = account match {
-      case VkontakteAccount(accessToken) =>
-        logger.debug(s"exec task.id $id with access_token=$accessToken")
-        httpRequest.param("access_token", accessToken)
-      case null => httpRequest
-    }
+  def exec(httpRequest: HttpRequest, account: VkontakteAccount): String = {
+    logger.debug(s"exec task.id $id with access_token=${account.accessToken}")
+    var httpReq = httpRequest.param("access_token", account.accessToken)
 
     httpReq = proxy match {
-      case p:CrawlerProxy =>
+      case Some(p:CrawlerProxy) =>
         logger.debug(s"exec task.id $id with proxy=$proxy")
         httpReq.proxy(p.url, p.port.toInt, p.proxyType match {
           case "http" => java.net.Proxy.Type.HTTP
           case "socks" => java.net.Proxy.Type.SOCKS
         })
-      case null => httpReq
+      case None => httpReq
     }
 
     logger.debug(s"${httpReq.url}?${httpReq.params.map { case (p, v) => s"$p=$v" }.mkString("&")}")
@@ -202,15 +202,15 @@ trait InstagramTask extends Task
 trait YoutubeTask extends Task {
   def exec(httpRequest: HttpRequest): String = {
     var httpReq = account match {
-      case YoutubeAccount(key) =>
-        logger.debug(s"exec task ${taskType()} task.id $id with key=$key")
+      case Some(YoutubeAccount(key)) =>
+        logger.debug(s"exec task ${taskType} task.id $id with key=$key")
         httpRequest.param("key", key)
-      case null => httpRequest
+      case None => httpRequest
     }
 
     httpReq = proxy match {
       case p:CrawlerProxy =>
-        logger.debug(s"exec task ${taskType()} task.id $id with proxy=$proxy")
+        logger.debug(s"exec task ${taskType} task.id $id with proxy=$proxy")
         httpReq.proxy(p.url, p.port.toInt, p.proxyType match {
           case "http" => java.net.Proxy.Type.HTTP
           case "socks" => java.net.Proxy.Type.SOCKS

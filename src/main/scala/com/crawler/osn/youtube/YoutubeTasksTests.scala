@@ -16,12 +16,13 @@ object YoutubeTopsTaskTests {
 
     val url = "jdbc:mysql://localhost:3306/youtube_tops?user=root&password=mysql&useSSL=false&useUnicode=true&characterEncoding=UTF-8"
 
-    val task = YoutubeTopsTask(country = "RU", RDBSSaverInfo(url,"youtube_tops","test"))(app = "testApp")
-    task.account = YoutubeAccount(key)
+    val task = YoutubeTopsTask(country = "RU")(app = "testApp")
+    task.saverInfo = Option(RDBSSaverInfo(url, "youtube_tops", "test"))
+    task.account = Option(YoutubeAccount(key))
     task.dataSchema = List("id$","medium.url")
     Util.injectDependencies(logger, null, task)
 
-    task.run(null)
+    task.run()
 
   }
 }

@@ -15,16 +15,14 @@ case class VkLikesTaskResponse(task: VkLikesTask, resultData: Array[BasicDBObjec
 case class VkLikesTask(itemType: String = "post",
                        ownerId: String,
                        itemId: String,
-                       var count: Int = 1000,
-                       saverInfo: SaverInfo = MemorySaverInfo(),
-                       override val responseActor: AnyRef = null
-                      )(implicit app: String)
+                       var count: Int = 1000)(implicit app: String)
   extends VkontakteTask
   with ResponseTask
   with SaveTask
   with FrequencyLimitedTask {
 
-  override def appname: String = app
+  val name = s"VkLikeTask(item=$ownerId)"
+  val appname = app
 
   override def extract(account: VkontakteAccount) = {
     var end = false
@@ -40,7 +38,7 @@ case class VkLikesTask(itemType: String = "post",
         .param("v", "5.8")
         .timeout(60 * 1000 * 10, 60 * 1000 * 10)
 
-      val res = exec(req)
+      val res = exec(req,account)
       logger.debug(res,account)
 
       val likes = JSON.parse(res).asInstanceOf[BasicDBObject]
@@ -64,8 +62,6 @@ case class VkLikesTask(itemType: String = "post",
       response(VkLikesTaskResponse(this.copy(), likes))
     }
   }
-
-  override def name: String = s"VkLikeTask(item=$ownerId)"
 
 }
 

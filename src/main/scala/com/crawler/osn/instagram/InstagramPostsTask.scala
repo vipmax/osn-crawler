@@ -12,18 +12,19 @@ import scalaj.http.Http
   */
 case class InstagramPostsTask(username: String,
                               var count: Int = 10,
-                              withLocation: Boolean = false,
-                              saverInfo: SaverInfo)
+                              withLocation: Boolean = false)
                              (implicit app: String)
   extends InstagramTask
     with StateTask
     with SaveTask {
 
+  val name = s"InstagramPostsTask(query=$username)"
+  val appname = app
+
+
   /* state */
   var offset = "0"
   var postsCounter = 0
-
-  override def appname: String = app
 
   override def run(network: AnyRef) {
 
@@ -68,7 +69,6 @@ case class InstagramPostsTask(username: String,
 
   }
 
-  override def name: String = s"InstagramPostsTask(query=$username)"
 
   override def saveState(stateParams: Map[String, Any]) {
 //    logger.debug(s"Saving state. stateParams=$stateParams")

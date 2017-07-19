@@ -7,7 +7,7 @@ import com.crawler.osn.common._
 import com.crawler.dao.{MemorySaverInfo, SaverInfo}
 import org.joda.time.DateTime
 
-import scalaj.http.Http
+import scalaj.http.{Http, HttpRequest}
 
 /**
   * Created by vipmax on 31.10.16.
@@ -16,48 +16,58 @@ import scalaj.http.Http
 case class VkSearchPostsTaskDataResponse(task: VkSearchPostsTask, resultData: Array[BasicDBObject], params: Map[String, String])  extends TaskDataResponse
 
 case class VkSearchPostsTask(query: String,
-                             startTime: Long = DateTime.now().minusDays(1).getMillis / 1000,
-                             endTime: Long = DateTime.now().getMillis / 1000,
-                             override val responseActor: ActorRef = null,
-                             saverInfo: SaverInfo = MemorySaverInfo()
+                             startTime: Long = 0,
+                             endTime: Long = 0
                             )(implicit app: String)
   extends VkontakteTask
     with SaveTask
     with ResponseTask
     with StateTask {
 
-  override def name: String = s"VkSearchPostsTask(query=$query, startTime=$startTime, endTime=$endTime)"
+  val name = s"VkSearchPostsTask(query=$query)"
+  val appname = app
 
-  override def appname: String = app
 
-  val httpRequest = Http("https://api.vk.com/method/newsfeed.search")
-    .param("q", query.toString)
-    .param("count", "200")
-    .param("start_time", startTime.toString)
-    .param("end_time", endTime.toString)
-    .param("v", "5.13")
+  private def buildRequest() = {
+    var httpRequest = Http("https://api.vk.com/method/newsfeed.search")
+      .param("q", query.toString)
+      .param("count", otherTaskParameters.getOrElse("count", "20").toString)
+      .param("v", otherTaskParameters.getOrElse("start_time", "5.13").toString)
+
+    httpRequest = if(startTime != 0) httpRequest.param("start_time", startTime.toString) else httpRequest
+    httpRequest = if(endTime != 0) httpRequest .param("end_time", endTime.toString) else httpRequest
+    httpRequest
+  }
+
 
   override def extract(account: VkontakteAccount) = {
     var end = false
     var startFrom = ""
+    var allcount = 0
+    val httpRequest = buildRequest()
 
     while(!end) {
-      val json = exec(httpRequest.param("start_from", startFrom))
-      val (posts, nextFrom, totalCount) = parse(json)
+      val json = exec(httpRequest.param("start_from", startFrom), account)
+      val (posts, nextFrom, totalCount) = parse(json,httpRequest)
       startFrom = nextFrom
+      allcount += posts.length
 
-      logger.debug(s"Found ${posts.length} posts, totalCount=$totalCount with startfrom=$startFrom nextFrom=$nextFrom for $id"
-      )
+      if(allcount >= otherTaskParameters.getOrElse("allcount", 20).toString.toLong) {
+        logger.debug(s"allcount achieved for task=$id")
+        end = true
+      }
+
+      logger.debug(s"Found ${posts.length} posts, totalCount=$totalCount with startfrom=$startFrom nextFrom=$nextFrom for $id")
 
       if (nextFrom == "" ) end = true
 
       save(posts)
       response(VkSearchPostsTaskDataResponse(this.copy(), posts, httpRequest.params.toMap))
-      onResult(posts)
+      if( onResult != null) onResult(posts)
     }
   }
 
-  private def parse(json: String) = {
+  private def parse(json: String, httpRequest: HttpRequest) = {
     val bObject = JSON.parse(json).asInstanceOf[BasicDBObject]
       .get("response").asInstanceOf[BasicDBObject]
 
@@ -70,6 +80,7 @@ case class VkSearchPostsTask(query: String,
         .append("key", s"${b.getString("from_id")}_${b.getString("id")}")
         .append("search_query_params", httpRequest.params.mkString(", "))
         .append("totalCount", totalCount)
+        .append("network", "vkontakte")
       }
 
     (posts, nextFrom, totalCount)
@@ -80,38 +91,3 @@ case class VkSearchPostsTask(query: String,
     startTime <= lastPostDate && lastPostDate <= endTime
   }
 }
-
-case class VkSearchPostsExtendedTask(params: Map[String, String],
-                                     responseActor: ActorRef = null,
-                                     saverInfo: SaverInfo)(implicit app: String) extends VkontakteTask {
-
-  override def name: String = s"VkSearchPostsExtendedTask(params=$params)"
-
-  override def appname: String = app
-
-  val request = Http("https://api.vk.com/method/newsfeed.search")
-    .params(params)
-    .param("v", "5.8")
-    .timeout(60 * 1000 * 10, 60 * 1000 * 10)
-
-  override def extract(account: VkontakteAccount) = {
-
-    val json = request.execute().body
-
-    val posts = try {
-      JSON.parse(json).asInstanceOf[BasicDBObject]
-        .get("response").asInstanceOf[BasicDBObject]
-        .get("items").asInstanceOf[BasicDBList].toArray
-        .map { case b: BasicDBObject => b.append("key", s"${b.getString("from_id")}_${b.getString("id")}")
-          .append("search_query_params", request.params.toMap)
-        }
-    } catch {
-      case e: Exception =>
-        logger.error(e)
-        logger.error(json)
-        Array[BasicDBObject]()
-    }
-  }
-
-}
-

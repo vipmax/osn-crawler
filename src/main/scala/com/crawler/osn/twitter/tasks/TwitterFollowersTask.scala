@@ -11,19 +11,17 @@ import twitter4j.Twitter
   */
 case class TwitterFollowersTaskResponse(profileId: Any, followers: Array[Long])
 
-case class TwitterFollowersTask(profileId: Any,
-                                var count: Int = 5000,
-                                responseActor: ActorRef = null,
-                                saverInfo: SaverInfo)(implicit app: String)
+case class TwitterFollowersTask(profileId: Any, var count: Int = 5000)(implicit app: String)
   extends TwitterTask
     with StateTask
     with SaveTask {
 
+  val name = s"TwitterFollowersTask(profileId=$profileId)"
+  val appname = app
+
   /* state */
   var offset = -1L
   var _newRequestsCount = 0
-
-  override def appname: String = app
 
   override def run(network: AnyRef) {
     logger.debug(s"Starting  $name task")
@@ -69,8 +67,6 @@ case class TwitterFollowersTask(profileId: Any,
       saveState(Map("offset" -> localOffset))
     }
   }
-
-  override def name: String = s"TwitterFollowersTask(profileId=$profileId)"
 
   override def saveState(stateParams: Map[String, Any]) {
     logger.debug(s"Saving state. stateParams=$stateParams")

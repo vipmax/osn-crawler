@@ -13,21 +13,20 @@ import scalaj.http.{Http, HttpRequest}
   */
 case class VkProfileTaskDataResponse(task: VkProfileTask, resultData: Array[BasicDBObject]) extends TaskDataResponse
 
-case class VkProfileTask(profileIds: List[String],
-                         saverInfo: SaverInfo = MemorySaverInfo()
-                        )(implicit app: String)
+case class VkProfileTask(profileIds: List[String])(implicit app: String)
   extends VkontakteTask
     with SaveTask
     with ResponseTask {
 
-  override def appname: String = app
+  val name = s"VkProfileTask(profilesCount=${profileIds.length})"
+  val appname = app
 
   def extract(account: VkontakteAccount) = {
     val users = profileIds.map(_.toLong).filter(_ > 0).mkString(",")
     val groups = profileIds.map(_.toLong).filter(_ < 0).map(-_).mkString(",")
 
     users.grouped(1000).foreach{ gusers =>
-      val json = exec(usersRequest(gusers))
+      val json = exec(usersRequest(gusers),account)
 
       val profiles = parse(json)
       logger.debug(s"Got ${profiles.length} user profiles")
@@ -35,7 +34,7 @@ case class VkProfileTask(profileIds: List[String],
     }
 
     groups.grouped(1000).foreach { ggroups =>
-      val json = exec(groupsRequest(ggroups))
+      val json = exec(groupsRequest(ggroups),account)
       logger.debug(json)
 
       val profiles = parse(json).map { bdo: BasicDBObject => bdo.append("key", s"-${bdo.getInt("id")}") }
@@ -73,7 +72,6 @@ case class VkProfileTask(profileIds: List[String],
     }
   }
 
-  override def name: String = s"VkProfileTask(profileIds=${profileIds.length})"
 
 
   val group_fields = "city, country, place, description, wiki_page, members_count, " +

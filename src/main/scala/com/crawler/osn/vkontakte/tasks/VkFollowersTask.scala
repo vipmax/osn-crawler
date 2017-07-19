@@ -13,21 +13,19 @@ import scalaj.http.Http
   */
 case class VkFollowersTaskDataResponse(task: VkFollowersTask, resultData: Array[BasicDBObject]) extends TaskDataResponse
 
-case class VkFollowersTask(profileId: String,
-                           count: Int = 100000000,
-                           saverInfo: SaverInfo = MemorySaverInfo(),
-                           override val responseActor: AnyRef = null
-                              )(implicit app: String)
+case class VkFollowersTask(profileId: String, count: Int = 100000000)(implicit app: String)
   extends VkontakteTask
     with SaveTask
     with ResponseTask {
+
+  val name = s"VkFollowersTask(userId=$profileId)"
+  val appname = app
 
   val methodName = if (profileId.toLong > 0)  "friends.get" else "groups.getMembers"
   val paramProfileKey = if (profileId.toLong > 0)  "user_id" else "group_id"
   val paramProfileValue = if (profileId.toLong > 0)  profileId else profileId.substring(1)
   val parseKey = if (profileId.toLong > 0) "items" else "users"
 
-  override def appname: String = app
 
   override def extract(account: VkontakteAccount) {
     var end = false
@@ -41,7 +39,7 @@ case class VkFollowersTask(profileId: String,
         .param("count", maxCount.toString)
         .param("v", "5.8")
 
-      val json = exec(httpRequest)
+      val json = exec(httpRequest, account)
 
       if(json.contains("error")){
         logger.error(s"error $json")
@@ -70,9 +68,6 @@ case class VkFollowersTask(profileId: String,
           .append("follower", f.toString)
       }
   }
-
-  override def name: String = s"VkFollowersTask(userId=$profileId)"
-
 }
 //
 //case class VkFollowersExtendedTask(profileId:String, saverInfo: SaverInfo)(implicit app: String) extends VkontakteTask {

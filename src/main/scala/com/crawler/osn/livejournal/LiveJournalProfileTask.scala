@@ -8,13 +8,10 @@ import com.crawler.dao.SaverInfo
   */
 case class LiveJournalProfileTask() extends LiveJournalTask {
   /** task name */
-  override def name: String = ???
+  val name: String = ???
 
   /** task name */
-  override def appname: String = ???
-
-  /** task saver meta info. base in it crawler injects com.crawler.dao.Saver object */
-  override def saverInfo: SaverInfo = ???
+  val appname: String = ???
 
   /** Method for run task. Must include network logic to different OSNs */
   override def run(network: AnyRef): Unit = ???

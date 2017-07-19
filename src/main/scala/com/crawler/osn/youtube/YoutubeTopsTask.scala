@@ -13,16 +13,13 @@ import scalaj.http.Http
 /**
   * Created by max on 01.07.17.
   */
-case class YoutubeTopsTask(country: String, saverInfo: SaverInfo = MemorySaverInfo())(implicit app: String)
+case class YoutubeTopsTask(country: String)(implicit app: String)
   extends YoutubeTask
     with SaveTask
     with StateTask {
 
-  /** task name */
-  override def name: String = s"YoutubeTopsTask($country)"
-
-  /** task name */
-  override def appname: String = app
+  val name = s"YoutubeTopsTask($country)"
+  val appname = app
 
   /** Method for run task. Must include network logic to different OSNs */
   override def run(network: AnyRef): Unit = {
@@ -30,7 +27,6 @@ case class YoutubeTopsTask(country: String, saverInfo: SaverInfo = MemorySaverIn
     var offset = 0
     var pageToken = ""
     val nowDate = new Date()
-
 
     val request = Http("https://content.googleapis.com/youtube/v3/videos")
       .param("regionCode", country)

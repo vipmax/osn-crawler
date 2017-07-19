@@ -59,18 +59,18 @@ class TwitterBalancer extends Actor {
     case task:TwitterTask  =>
       logger.trace(s"Got ${task.getClass.getSimpleName}(${task.name})")
 
-      val freeWorker = getFreeWorker(task.taskType())
+      val freeWorker = getFreeWorker(task.taskType)
 
       freeWorker match {
         case Some(worker) =>
           logger.trace(s"Sending task ${task.name} to worker $worker")
 
           worker ! task
-          removeFreeWorker(worker,task.taskType())
+          removeFreeWorker(worker,task.taskType)
           actualTasksCount += 1
 
         case None =>
-          logger.trace(s"freeWorker not found for task type: ${task.taskType()}")
+          logger.trace(s"freeWorker not found for task type: ${task.taskType}")
 
           enqueueTask(task)
           actualTasksCount += 1
@@ -81,7 +81,7 @@ class TwitterBalancer extends Actor {
       app match {
         case Some(a) =>
           val tasktypes: Map[String, Int] = a
-            .taskList.groupBy(_.taskType())
+            .taskList.groupBy(_.taskType)
             .map{case (tasktype, tasks) => (tasktype, tasks.size) }
 
           val stat = AppStat("tasktypes", Map("tasktypes" -> tasktypes))

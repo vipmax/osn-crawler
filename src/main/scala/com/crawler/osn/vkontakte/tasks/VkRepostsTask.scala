@@ -15,17 +15,15 @@ case class VkRepostsTaskDataResponse(task: VkRepostsTask, resultData: Array[Basi
 
 case class VkRepostsTask(ownerId: String,
                          postId: String,
-                         count: Int = 1000,
-                         override val responseActor: AnyRef = null,
-                         saverInfo: SaverInfo = MemorySaverInfo()
-                        )(implicit app: String)
+                         count: Int = 1000)(implicit app: String)
   extends VkontakteTask
     with ResponseTask
     with SaveTask
     with StateTask
     with FrequencyLimitedTask {
 
-  override def appname: String = app
+  val name = s"VkRepostsTask(ownerId=$ownerId, postId=$postId)"
+  val appname = app
 
   override def extract(account: VkontakteAccount) {
     var end = false
@@ -40,7 +38,7 @@ case class VkRepostsTask(ownerId: String,
         .param("v", "5.8")
         .timeout(60 * 1000 * 10, 60 * 1000 * 10)
 
-      val json = exec(request)
+      val json = exec(request,account)
       logger.trace(json)
 
       if(json.contains("too many requests from your IP")){
@@ -65,9 +63,6 @@ case class VkRepostsTask(ownerId: String,
       if (reposts.length < 10 || offset >= count) end = true
     }
   }
-
-  override def name: String = s"VkRepostsTask(ownerId=$ownerId, postId=$postId)"
-
 }
 
 

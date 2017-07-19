@@ -9,14 +9,14 @@ import org.jsoup.Jsoup
 /**
   * Created by vipmax on 31.10.16.
   */
-case class InstagramProfileTask(profileId: Any, saverInfo: SaverInfo)(implicit app: String)
+case class InstagramProfileTask(profileId: Any)(implicit app: String)
   extends InstagramTask
     with SaveTask {
 
-  override def appname: String = app
+  val name = s"InstagramProfileTask(userId=$profileId)"
+  val appname = app
 
   override def run(network: AnyRef) {
-
     val json = profileId match {
       case username: String =>
         Jsoup.connect(s"https://instagram.com/$username/?__a=1").ignoreContentType(true).execute().body()
@@ -30,8 +30,5 @@ case class InstagramProfileTask(profileId: Any, saverInfo: SaverInfo)(implicit a
 
     save(userInfo)
   }
-
-  override def name: String = s"InstagramProfileTask(userId=$profileId)"
-
 }
 

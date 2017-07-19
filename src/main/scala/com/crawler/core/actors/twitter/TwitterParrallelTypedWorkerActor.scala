@@ -69,7 +69,7 @@ class TwitterParrallelTypedWorkerActor(account: TwitterAccount,
 
       e match {
         case e: TwitterException if e.getRateLimitStatus.getRemaining <= 0 =>
-          slots(task.taskType()) = 0
+          slots(task.taskType) = 0
           logger.error(s"RateLimit Exception!!! ${e.getRateLimitStatus} Trying once more for task $task!!!")
           Thread.sleep(1000)
           balancer ! task
@@ -81,7 +81,7 @@ class TwitterParrallelTypedWorkerActor(account: TwitterAccount,
       }
 
       /* slots updating */
-      slots(task.taskType()) -= task.newRequestsCount()
+      slots(task.taskType) -= task.newRequestsCount()
 
       logger.debug(s"slots = $slots")
 

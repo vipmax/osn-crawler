@@ -36,17 +36,13 @@ case class App(name:String, var quantumCount:Int = 1, var quantumLeft:Int = 1,
   val tasksByType: mutable.LinkedHashMap[String, mutable.LinkedHashSet[Task]] = mutable.LinkedHashMap[String, mutable.LinkedHashSet[Task]]()
   val taskList: mutable.LinkedHashSet[Task] = mutable.LinkedHashSet[Task]()
 
-  /*
-   required for two-level quantum typed balancer
-   */
-  private var _currtaskTypeIndex: Int = 0
+  private var currentTaskTypeIndex: Int = 0
 
   def addTask(task:Task) {
-    val taskType = task.taskType()
-    if (!tasksByType.contains(taskType)) {
-      tasksByType(taskType) = mutable.LinkedHashSet[Task]()
+    if (!tasksByType.contains(task.taskType)) {
+      tasksByType(task.taskType) = mutable.LinkedHashSet[Task]()
     }
-    tasksByType(taskType).add(task)
+    tasksByType(task.taskType).add(task)
     taskList.add(task)
   }
 
@@ -55,13 +51,12 @@ case class App(name:String, var quantumCount:Int = 1, var quantumLeft:Int = 1,
   }
 
   def removeTask(task:Task): Unit = {
-    val taskType = task.taskType()
-    tasksByType(taskType).remove(task)
-    if (tasksByType(taskType).isEmpty){
-      tasksByType.remove(taskType)
+    tasksByType(task.taskType).remove(task)
+    if (tasksByType(task.taskType).isEmpty){
+      tasksByType.remove(task.taskType)
       // we don't need to move currTaskTypeIndex because it is already "moved"
       // but we need to check for end of sequence
-      _currtaskTypeIndex = if (_currtaskTypeIndex < tasksByType.size) _currtaskTypeIndex else 0
+      currentTaskTypeIndex = if (currentTaskTypeIndex < tasksByType.size) currentTaskTypeIndex else 0
     }
     taskList.remove(task)
   }
@@ -71,10 +66,10 @@ case class App(name:String, var quantumCount:Int = 1, var quantumLeft:Int = 1,
   def taskTypes() = tasksByType.keys.toList
 
   def updateCurrTaskTypeIndex(index:Int) {
-    _currtaskTypeIndex = index
+    currentTaskTypeIndex = index
   }
 
-  def currTaskTypeIndex = _currtaskTypeIndex
+  def currTaskTypeIndex = currentTaskTypeIndex
 
   override def equals(obj: scala.Any): Boolean = {
     obj match {
@@ -86,7 +81,7 @@ case class App(name:String, var quantumCount:Int = 1, var quantumLeft:Int = 1,
   override def hashCode(): Int = name.hashCode
 
   override def toString: String = {
-    s" Appname=$name tasks=" + taskList.groupBy(_.taskType()).map{case (tasktype, tasks) => (tasktype, tasks.size)}
+    s" Appname=$name tasks=" + taskList.groupBy(_.taskType).map{case (tasktype, tasks) => (tasktype, tasks.size)}
   }
 }
 
@@ -133,14 +128,14 @@ class Balancer extends Actor {
     case task: Task =>
 //      logger.trace(s"Got Task(${task.name})")
 
-      val freeWorker = getFreeWorker(task.taskType())
+      val freeWorker = getFreeWorker(task.taskType)
 
       freeWorker match {
         case Some(worker) =>
           logger.trace(s"Sending task ${task.name} to worker $worker")
 
           worker ! task
-          removeFreeWorker(worker, task.taskType())
+          removeFreeWorker(worker, task.taskType)
 
         case None =>
 //          logger.trace(s"freeWorker not found for task type: ${task.taskType()}")
@@ -152,7 +147,7 @@ class Balancer extends Actor {
       app match {
         case Some(a) =>
           val tasktypes: Map[String, Int] = a
-          .taskList.groupBy(_.taskType())
+          .taskList.groupBy(_.taskType)
           .map{case (tasktype, tasks) => (tasktype, tasks.size) }
 
           val stat = AppStat("tasktypes", Map("tasktypes" -> tasktypes))
@@ -209,7 +204,7 @@ class Balancer extends Actor {
 
   def addFreeWorker(freeWorker: ActorRef, workerTaskRequest: SimpleWorkerTaskRequest) = {
     val tt = Option(workerTaskRequest.task) match {
-      case Some(t) => t.taskType()
+      case Some(t) => t.taskType
       case None => "anytask"
     }
 

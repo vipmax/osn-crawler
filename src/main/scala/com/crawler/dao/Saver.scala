@@ -95,22 +95,37 @@ case class KafkaUniqueSaver(kafkaEndpoint: String, redisEndpoint: String, kafkaT
   val kafkaProps = Map[String, Object]("bootstrap.servers" -> kafkaEndpoint)
   val kafkaProducer = new KafkaProducer[String, String](kafkaProps, new StringSerializer, new StringSerializer)
 
-  val redisPool = new JedisPool(new JedisPoolConfig(), redisEndpoint)
-  val jedis = redisPool.getResource
+//  val redisPool = new JedisPool(new JedisPoolConfig(), redisEndpoint)
+//  val jedis = redisPool.getResource
+
+  val dataKeys = mutable.LinkedHashSet[String]()
+
 
   override def saveOne(d: BasicDBObject): Unit = {
     val key = s"$kafkaTopic-${d.getString("key", java.util.UUID.randomUUID.toString.substring(0, 20))}"
     val value = d.toJson
-//    try {
-      val rsps = jedis.setnx(key, "")
-      if (rsps <= 0) {
-        logger.warn(s"saver $saverId: kafka dublicate key $key")
-      }
-      else {
-        jedis.expire(key, 7200) // 2 hours is ok for production environment;
-        logger.debug(s"saver $saverId: needs save $key to kafka")
-        kafkaProducer.send(new ProducerRecord[String, String](kafkaTopic, value))
-      }
+
+    val isNewPost = synchronized { dataKeys.add(key) }
+    if(!isNewPost){
+      if(dataKeys.size >= 1000)
+        dataKeys -= dataKeys.head
+
+//      logger.debug(s"old data key : $key dataKeys size: ${dataKeys.size}")
+    }
+    else {
+      //    try {
+//      val rsps = jedis.setnx(key, "")
+//      if (rsps <= 0) {
+//        logger.warn(s"saver $saverId: kafka dublicate key $key")
+//      }
+//      else {
+//        jedis.expire(key, 7200) // 2 hours is ok for production environment;
+//        logger.debug(s"saver $saverId: needs save $key to kafka")
+//        kafkaProducer.send(new ProducerRecord[String, String](kafkaTopic, value))
+//      }
+      logger.debug(s"saver $saverId: needs save $key to kafka")
+      kafkaProducer.send(new ProducerRecord[String, String](kafkaTopic, value))
+    }
 //    }catch { case e: JedisException  =>
 //      logger.debug(s"Needs save $key to kafka")
 //      kafkaProducer.send(new ProducerRecord[String, String](kafkaTopic, value))}

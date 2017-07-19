@@ -103,10 +103,10 @@ object Util {
 
   def injectDependencies(logger: CrawlerLogger, balancer: ActorRef, task: Task) {
     task.logger = logger
-    task.balancer = balancer
+    task.balancer =  Option(balancer)
 
-    ConnectionManager.getSaver(task.saverInfo) match {
-      case saver  => task.saver = saver
+    ConnectionManager.getSaver(task.saverInfo.get) match {
+      case saver  => task.saver = Option(saver)
       case _ => logger.debug("Unknown saver")
     }
   }

@@ -13,14 +13,13 @@ import scalaj.http.Http
   */
 case class VkCommentsTask(ownerId: String,
                           postId: String,
-                          var count: Int = 1000000,
-                          override val responseActor: AnyRef = null,
-                          saverInfo: SaverInfo = MemorySaverInfo())(implicit app: String)
+                          var count: Int = 1000000)(implicit app: String)
   extends VkontakteTask
     with ResponseTask
     with SaveTask {
 
-  override def appname: String = app
+  val name = s"VkCommentsTask(item=$ownerId)"
+  val appname = app
 
   override def extract(account: VkontakteAccount) = {
     var end = false
@@ -54,8 +53,6 @@ case class VkCommentsTask(ownerId: String,
 //      response(responseActor, VkRepostsTaskResponse(this, comments))
     }
   }
-
-  override def name: String = s"VkCommentsTask(item=$ownerId)"
 
 }
 

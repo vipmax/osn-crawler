@@ -4,7 +4,8 @@ import akka.actor.ActorRef
 import com.mongodb.util.JSON
 import com.mongodb.{BasicDBList, BasicDBObject}
 import com.crawler.osn.common._
-import com.crawler.dao.SaverInfo
+import com.crawler.dao.{MemorySaver, MemorySaverInfo, SaverInfo}
+import com.crawler.logger.CrawlerLoggerFactory
 import com.crawler.osn.twitter.tasks.TwitterSearchPostsTask
 import redis.clients.jedis.exceptions.JedisConnectionException
 
@@ -14,14 +15,14 @@ import scalaj.http.Http
   * Created by vipmax on 31.10.16.
   */
 case class InstagramSearchPostsTask(query: String,
-                                    var count: Int = 10,
-                                    saverInfo: SaverInfo)
+                                    var count: Int = 10)
                                    (implicit app: String)
   extends InstagramTask
     with SaveTask
     with StateTask {
 
-  override def appname: String = app
+  val name = s"InstagramSearchPostsTask(query=$query)"
+  val appname = app
 
   override def run(network: AnyRef) {
     var end = false
@@ -62,32 +63,32 @@ case class InstagramSearchPostsTask(query: String,
     (posts, pageInfo.getBoolean("has_next_page"), pageInfo.getString("end_cursor"))
   }
 
-  override def name: String = s"InstagramSearchPostsTask(query=$query)"
 }
 
 case class InstagramNewGeoPostsSearchTaskFailureResponse(task: InstagramNewGeoPostsSearchTask,
                                                          resultData: Array[BasicDBObject],
                                                          exception: Exception) extends TaskDataResponse
 
-case class InstagramNewGeoPostsSearchTask(query: String,
-                                          saverInfo: SaverInfo,
-                                          override val responseActor: AnyRef = null
-                                         )
-                                         (implicit app: String)
+case class InstagramNewGeoPostsSearchTask(query: String)(implicit app: String)
   extends InstagramTask
     with SaveTask
     with StateTask
     with ResponseTask {
 
-  override def appname: String = app
+  val name = s"InstagramSearchPostsTask(query=$query)"
+  val appname: String = app
 
   override def run(network: AnyRef) {
     try {
       val posts = searchPosts(query)
       val postsWithLocation = appendLocation(posts)
       logger.info(s"Found ${postsWithLocation.length} posts for task $id")
-      postsWithLocation.foreach(save)
+      save(postsWithLocation)
     }catch {
+      case e:redis.clients.jedis.exceptions.JedisConnectionException =>
+        logger.error("JedisConnectionException ")
+        logger.error(e.getStackTrace)
+
       case e:Exception =>
         logger.error("wrong topic")
         logger.error(e.getStackTrace)
@@ -138,8 +139,15 @@ case class InstagramNewGeoPostsSearchTask(query: String,
     location.remove("top_posts").asInstanceOf[BasicDBObject]
     location
   }
+}
 
-
-  override def name: String = s"InstagramSearchPostsTask(query=$query)"
+object InstagramNewGeoPostsSearchTaskTests {
+  def main(args: Array[String]) {
+    val task = InstagramNewGeoPostsSearchTask("spb")("test")
+    task.saver = Option(MemorySaver())
+    task.logger = CrawlerLoggerFactory.logger("tests","InstagramNewGeoPostsSearchTaskTests")
+    task.run()
+    task.saver.asInstanceOf[MemorySaver].savedData.foreach(println)
+  }
 }
 

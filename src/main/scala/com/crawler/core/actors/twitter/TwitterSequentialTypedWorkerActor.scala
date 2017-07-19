@@ -61,11 +61,11 @@ class TwitterSequentialTypedWorkerActor(account: TwitterAccount,
         task.run(twitter)
 
         /* slots updating */
-        slots(task.taskType()) -= task.newRequestsCount()
+        slots(task.taskType) -= task.newRequestsCount()
 
       } catch {
          case e: TwitterException if e.getRateLimitStatus.getRemaining <= 0 =>
-          slots(task.taskType()) = 0
+          slots(task.taskType) = 0
           logger.error(s"RateLimit!!! ${e.getRateLimitStatus} Trying once more for task $task!!!")
           Thread.sleep(1000)
           Util.uninjectDependencies(task)

@@ -9,11 +9,12 @@ import twitter4j.{Twitter, TwitterObjectFactory, User}
 /**
   * Created by vipmax on 29.11.16.
   */
-case class TwitterProfileTask(profileId: Any, saverInfo: SaverInfo)(implicit app: String)
+case class TwitterProfileTask(profileId: Any)(implicit app: String)
   extends TwitterTask
     with SaveTask{
 
-  override def appname: String = app
+  val name = s"TwitterProfileTask(profileId=$profileId)"
+  val appname = app
 
   override def run(network: AnyRef) {
     network match {
@@ -36,7 +37,6 @@ case class TwitterProfileTask(profileId: Any, saverInfo: SaverInfo)(implicit app
     save(data)
   }
 
-  override def name: String = s"TwitterProfileTask(profileId=$profileId)"
 
   private def getData(userProfile: User) = {
     val json = TwitterObjectFactory.getRawJSON(userProfile)
