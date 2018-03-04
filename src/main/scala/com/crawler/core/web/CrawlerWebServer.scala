@@ -25,26 +25,26 @@ class CrawlerWebServer(crawlerMaster: CrawlerMaster) {
     val route =
       pathEndOrSingleSlash {
         get {
-          crawlerMaster.log.info("connection /")
+          println("connection /")
           complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, buildMainPage().mkString("\n")))
         }
       } ~
       path("app" / Segments) { appname =>
         get {
 
-          crawlerMaster.log.info("connection /app " + appname)
+          println("connection /app " + appname)
           complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, buildAppPage(appname = appname.last).mkString("\n")))
         }
       }
 
 
     Http().bindAndHandle(route, "localhost", 5555)
-    crawlerMaster.log.info(s"Web server online at http://localhost:5555/")
+    println(s"Web server online at http://localhost:5555/")
   }
 
   def stop() {
     //TODO: implement stop logic
-    crawlerMaster.log.info("Web server stopped")
+    println("Web server stopped")
   }
 
   private def buildMainPage() = {
@@ -79,11 +79,12 @@ class CrawlerWebServer(crawlerMaster: CrawlerMaster) {
   }
 
   private def buildAppPage(appname: String) = {
-    crawlerMaster.log.info(s"appname = $appname")
+    println(s"appname = $appname")
     implicit val timeout = Timeout(3 seconds)
     val future = crawlerMaster.balancer ? GetStatsApp(appname)
     val stats = Await.result(future, 5 seconds).asInstanceOf[AppStats]
-    crawlerMaster.log.info(s"stats = $stats")
+    stats.appname
+    println(s"stats = $stats")
 
     <html>
       <body>

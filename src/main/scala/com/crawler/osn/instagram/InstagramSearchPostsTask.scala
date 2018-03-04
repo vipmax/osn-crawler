@@ -90,8 +90,8 @@ case class InstagramNewGeoPostsSearchTask(query: String)(implicit app: String)
         logger.error(e.getStackTrace)
 
       case e:Exception =>
-        logger.error("wrong topic")
-        logger.error(e.getStackTrace)
+        logger.error("Something wrong topic")
+        e.printStackTrace()
         response(InstagramNewGeoPostsSearchTaskFailureResponse(this.copy(), Array(), e))
       }
   }
@@ -100,8 +100,11 @@ case class InstagramNewGeoPostsSearchTask(query: String)(implicit app: String)
     val stringResponse = Http(s"https://www.instagram.com/explore/tags/$tag/?__a=1").timeout(60000,60000).execute().body
     val jsonResponse = JSON.parse(stringResponse).asInstanceOf[BasicDBObject]
 
-    val posts = jsonResponse.get("tag").asInstanceOf[BasicDBObject].get("media").asInstanceOf[BasicDBObject]
-      .get("nodes").asInstanceOf[BasicDBList].toArray.map(_.asInstanceOf[BasicDBObject])
+    val posts = jsonResponse
+      .get("graphql").asInstanceOf[BasicDBObject]
+      .get("hashtag").asInstanceOf[BasicDBObject]
+      .get("edge_hashtag_to_media").asInstanceOf[BasicDBObject]
+      .get("edges").asInstanceOf[BasicDBList].toArray.map{ case o:BasicDBObject => o.get("node").asInstanceOf[BasicDBObject]}
     posts
   }
 
@@ -114,7 +117,7 @@ case class InstagramNewGeoPostsSearchTask(query: String)(implicit app: String)
   }
 
   def appendLocation(posts: Array[BasicDBObject]) = {
-    val postsIds = posts.par.map{p => try { getPost(p.getString("code"))} catch { case e:Exception => p }}
+    val postsIds = posts.par.map{p => try { getPost(p.getString("shortcode"))} catch { case e:Exception => p }}
     postsIds.par
       .map { p =>
         try {
@@ -147,7 +150,7 @@ object InstagramNewGeoPostsSearchTaskTests {
     task.saver = Option(MemorySaver())
     task.logger = CrawlerLoggerFactory.logger("tests","InstagramNewGeoPostsSearchTaskTests")
     task.run()
-    task.saver.asInstanceOf[MemorySaver].savedData.foreach(println)
+    task.saver.asInstanceOf[Option[MemorySaver]].get.savedData.foreach(println)
   }
 }
 

@@ -69,6 +69,7 @@ object Util {
         Source.fromFile(file)
           .getLines()
           .filter(_.length > 10)
+          .filter(!_.contains("//"))
           .map(line => VkontakteAccount(line))
       })
     accounts.foreach(println)
