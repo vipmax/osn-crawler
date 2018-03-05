@@ -100,12 +100,20 @@ case class InstagramNewGeoPostsSearchTask(query: String)(implicit app: String)
     val stringResponse = Http(s"https://www.instagram.com/explore/tags/$tag/?__a=1").timeout(60000,60000).execute().body
     val jsonResponse = JSON.parse(stringResponse).asInstanceOf[BasicDBObject]
 
-    val posts = jsonResponse
-      .get("graphql").asInstanceOf[BasicDBObject]
-      .get("hashtag").asInstanceOf[BasicDBObject]
-      .get("edge_hashtag_to_media").asInstanceOf[BasicDBObject]
-      .get("edges").asInstanceOf[BasicDBList].toArray.map{ case o:BasicDBObject => o.get("node").asInstanceOf[BasicDBObject]}
-    posts
+    try {
+      val posts = jsonResponse
+        .get("graphql").asInstanceOf[BasicDBObject]
+        .get("hashtag").asInstanceOf[BasicDBObject]
+        .get("edge_hashtag_to_media").asInstanceOf[BasicDBObject]
+        .get("edges").asInstanceOf[BasicDBList].toArray.map{ case o:BasicDBObject => o.get("node").asInstanceOf[BasicDBObject]}
+      posts
+    }
+    catch { case e:Exception =>
+      logger.error(e.getClass,e.getCause, e.getStackTrace.mkString("\n"))
+      logger.error(jsonResponse)
+      throw e
+    }
+
   }
 
   def getPost(postId: String) = {
