@@ -197,7 +197,30 @@ trait VkontakteTask extends Task {
 }
 
 
-trait InstagramTask extends Task
+trait InstagramTask extends Task {
+
+  def exec(httpRequest: HttpRequest): String = {
+    logger.debug(s"exec task.id $id")
+    var httpReq = httpRequest
+
+    httpReq = proxy match {
+      case Some(p:CrawlerProxy) =>
+        logger.debug(s"exec task.id $id with proxy=$proxy")
+        httpReq.proxy(p.url, p.port.toInt, p.proxyType match {
+          case "http" => java.net.Proxy.Type.HTTP
+          case "socks" => java.net.Proxy.Type.SOCKS
+        })
+      case None => httpReq
+    }
+
+    logger.debug(s"${httpReq.url}?${httpReq.params.map { case (p, v) => s"$p=$v" }.mkString("&")}")
+    val json = httpReq.timeout(60 * 1000 * 10, 60 * 1000 * 10).execute().body.toString
+    logger.debug(s"json - $json")
+
+    json
+  }
+
+}
 
 trait YoutubeTask extends Task {
   def exec(httpRequest: HttpRequest): String = {

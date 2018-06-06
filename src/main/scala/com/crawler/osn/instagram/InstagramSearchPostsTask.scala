@@ -144,10 +144,13 @@ case class InstagramNewGeoPostsSearchTask(query: String)(implicit app: String)
   }
 
   def getLocation(locationId: String) = {
-    val response = Http(s"https://www.instagram.com/explore/locations/$locationId/?__a=1").execute().body
-    val location = JSON.parse(response).asInstanceOf[BasicDBObject].get("location").asInstanceOf[BasicDBObject]
-    location.remove("media").asInstanceOf[BasicDBObject]
-    location.remove("top_posts").asInstanceOf[BasicDBObject]
+    val response = exec(Http(s"https://www.instagram.com/explore/locations/$locationId/?__a=1"))
+    val location = JSON.parse(response).asInstanceOf[BasicDBObject]
+      .get("graphql").asInstanceOf[BasicDBObject]
+      .get("location").asInstanceOf[BasicDBObject]
+
+//    location.remove("media").asInstanceOf[BasicDBObject]
+//    location.remove("top_posts").asInstanceOf[BasicDBObject]
     location
   }
 }
@@ -157,8 +160,10 @@ object InstagramNewGeoPostsSearchTaskTests {
     val task = InstagramNewGeoPostsSearchTask("spb")("test")
     task.saver = Option(MemorySaver())
     task.logger = CrawlerLoggerFactory.logger("tests","InstagramNewGeoPostsSearchTaskTests")
+    task.proxy = Some(CrawlerProxy("socks", "localhost", "9050"))
+
     task.run()
-    task.saver.asInstanceOf[Option[MemorySaver]].get.savedData.foreach(println)
+    task.saver.asInstanceOf[Option[MemorySaver]].get.savedData.take(20).foreach(println)
   }
 }
 
