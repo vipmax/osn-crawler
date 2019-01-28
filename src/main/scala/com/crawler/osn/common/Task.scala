@@ -209,6 +209,7 @@ trait InstagramTask extends Task {
         httpReq.proxy(p.url, p.port.toInt, p.proxyType match {
           case "http" => java.net.Proxy.Type.HTTP
           case "socks" => java.net.Proxy.Type.SOCKS
+          case _ => java.net.Proxy.Type.SOCKS
         })
       case None => httpReq
     }

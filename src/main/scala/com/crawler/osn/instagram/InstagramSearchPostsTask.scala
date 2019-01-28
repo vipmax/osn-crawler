@@ -129,10 +129,18 @@ case class InstagramNewGeoPostsSearchTask(query: String)(implicit app: String)
     postsIds.par
       .map { p =>
         try {
-          val locationId = p.get("location").asInstanceOf[BasicDBObject].getString("id")
-          val location = getLocation(locationId)
-          p.replace("location", location)
-        } catch { case _ => }
+          if(p.containsField("location")){
+            val locationId = p.get("location").asInstanceOf[BasicDBObject].getString("id")
+            val location = getLocation(locationId)
+            p.replace("location", location)
+          }
+
+        } catch { case e:Exception =>
+          logger.error(s"e! $e")
+          logger.error(s"e! ${e.getMessage}")
+          logger.error(s"e! ${e.getStackTrace.mkString("\n")}")
+          logger.error(s"Can't get location for $p")
+        }
 
         p.put("key", p.getString("shortcode"))
         p.put("query", query)
@@ -143,16 +151,41 @@ case class InstagramNewGeoPostsSearchTask(query: String)(implicit app: String)
       }.toArray
   }
 
-  def getLocation(locationId: String) = {
-    val response = exec(Http(s"https://www.instagram.com/explore/locations/$locationId/?__a=1"))
-    val location = JSON.parse(response).asInstanceOf[BasicDBObject]
-      .get("graphql").asInstanceOf[BasicDBObject]
-      .get("location").asInstanceOf[BasicDBObject]
+  def getLocation(locationId: String):BasicDBObject = {
+    var tryCounter = 0
 
-//    location.remove("media").asInstanceOf[BasicDBObject]
-//    location.remove("top_posts").asInstanceOf[BasicDBObject]
-    location
+    while (tryCounter <= 10){
+      if(LocationsCache.locationsCache.contains(locationId)){
+        logger.info(s"Found $locationId in locationsCache")
+        return LocationsCache.locationsCache(locationId)
+      }
+
+      val response = exec(Http(s"https://www.instagram.com/explore/locations/$locationId/?__a=1"))
+
+      if(response.contains("Please wait a few minutes before you try again")){
+        tryCounter += 1
+      }
+      else {
+        val location = JSON.parse(response).asInstanceOf[BasicDBObject]
+          .get("graphql").asInstanceOf[BasicDBObject]
+          .get("location").asInstanceOf[BasicDBObject]
+
+        LocationsCache.locationsCache += locationId -> location
+
+        return location
+      }
+
+    }
+
+    return new BasicDBObject()
   }
+}
+
+object LocationsCache {
+  val locationsCache = collection.mutable.Map[String,BasicDBObject]()
+
+
+
 }
 
 object InstagramNewGeoPostsSearchTaskTests {
